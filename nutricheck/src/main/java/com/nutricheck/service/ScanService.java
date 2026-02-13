@@ -3,95 +3,78 @@ package com.nutricheck.service;
 import com.nutricheck.dto.ScanResponse;
 import com.nutricheck.entity.Scan;
 import com.nutricheck.entity.ScanResult;
+import com.nutricheck.entity.User;
+import com.nutricheck.exceptions.ScanNotFoundException;
+import com.nutricheck.mapper.interfaces.IScanMapper;
 import com.nutricheck.repository.ScanRepository;
 import com.nutricheck.repository.ScanResultRepository;
+import com.nutricheck.service.interfaces.IScanReader;
+import com.nutricheck.service.interfaces.IScanWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ScanService {
+public class ScanService implements IScanReader, IScanWriter {
 
     private final ScanRepository scanRepository;
     private final ScanResultRepository scanResultRepository;
+    private final IScanMapper scanMapper; // ✅ Uses mapper interface (DIP)
 
-    /**
-     * Get detailed scan information by ID
-     */
+    // ============ IScanReader ============
+
+    @Override
     public ScanResponse getScanById(Long scanId) {
         Scan scan = scanRepository.findById(scanId)
-                .orElseThrow(() -> new RuntimeException("Scan not found with id: " + scanId));
+                .orElseThrow(() -> new ScanNotFoundException(
+                        "Scan not found with id: " + scanId));
 
-        return buildScanResponse(scan);
+        List<ScanResult> results = scanResultRepository.findByScanId(scanId);
+
+        // ✅ Mapping delegated to ScanMapper (SRP)
+        return scanMapper.toScanResponse(scan, results);
     }
 
-    /**
-     * Get all scans for a user
-     */
+    @Override
     public List<ScanResponse> getScansByUserId(Long userId) {
         List<Scan> scans = scanRepository.findByUserId(userId);
 
         return scans.stream()
-                .map(this::buildScanResponse)
+                .map(scan -> {
+                    List<ScanResult> results = scanResultRepository
+                            .findByScanId(scan.getId());
+                    return scanMapper.toScanResponse(scan, results);
+                })
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Build complete scan response with all results
-     */
-    private ScanResponse buildScanResponse(Scan scan) {
-        // Get all scan results for this scan using optimized query
-        List<ScanResult> scanResults = scanResultRepository.findByScanId(scan.getId());
+    // ============ IScanWriter ============
 
-        // Build result DTOs
-        List<com.nutricheck.dto.ScanResultDto> resultDtos = scanResults.stream()
-                .map(sr -> com.nutricheck.dto.ScanResultDto.builder()
-                        .resultId(sr.getId())
-                        .ingredientName(sr.getIngredient().getName())
-                        .risk(sr.getRisk())
-                        .severity(sr.getSeverity())
-                        .explanation(sr.getExplanation())
-                        .description(sr.getIngredient().getDescription())
-                        .category(sr.getIngredient().getCategory())
-                        .sideEffects(sr.getIngredient().getSideEffects())
-                        .build())
-                .collect(Collectors.toList());
+    @Override
+    @Transactional
+    public Scan createScan(String productName, User user) {
+        if (productName == null || productName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Product name cannot be empty");
+        }
+        if (user == null) {
+            throw new IllegalArgumentException("User cannot be null");
+        }
 
-        // Calculate summary statistics
-        int lowCount = (int) scanResults.stream()
-                .filter(sr -> "LOW".equalsIgnoreCase(sr.getRisk()))
-                .count();
-        int mediumCount = (int) scanResults.stream()
-                .filter(sr -> "MEDIUM".equalsIgnoreCase(sr.getRisk()))
-                .count();
-        int highCount = (int) scanResults.stream()
-                .filter(sr -> "HIGH".equalsIgnoreCase(sr.getRisk()))
-                .count();
-
-        String overallRisk = highCount > 0 ? "HIGH" : (mediumCount > 0 ? "MEDIUM" : "LOW");
-
-        com.nutricheck.dto.ScanSummary summary = com.nutricheck.dto.ScanSummary.builder()
-                .totalIngredients(scanResults.size())
-                .lowRiskCount(lowCount)
-                .mediumRiskCount(mediumCount)
-                .highRiskCount(highCount)
-                .overallRisk(overallRisk)
+        Scan scan = Scan.builder()
+                .productName(productName)
+                .scannedAt(LocalDateTime.now())
+                .user(user)
                 .build();
 
-        return ScanResponse.builder()
-                .scanId(scan.getId())
-                .productName(scan.getProductName())
-                .scannedAt(scan.getScannedAt())
-                .userId(scan.getUser().getId())
-                .userName(scan.getUser().getName())
-                .results(resultDtos)
-                .summary(summary)
-                .build();
+        Scan saved = scanRepository.save(scan);
+        log.info("Created scan ID: {} for product: {}", saved.getId(), productName);
+        return saved;
     }
 }
