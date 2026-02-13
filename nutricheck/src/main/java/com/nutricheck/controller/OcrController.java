@@ -3,16 +3,17 @@ package com.nutricheck.controller;
 import com.nutricheck.dto.ScanResponse;
 import com.nutricheck.dto.enums.ProductCategory;
 import com.nutricheck.entity.Scan;
-import com.nutricheck.service.OcrService;
-import com.nutricheck.service.ScanService;
+import com.nutricheck.exceptions.InvalidCategoryException;
+import com.nutricheck.service.interfaces.IOcrService;
+import com.nutricheck.service.interfaces.IScanReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @RestController
@@ -21,88 +22,52 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class OcrController {
 
-    private final OcrService ocrService;
-    private final ScanService scanService;
+    // ✅ Depends on INTERFACES, not concrete implementations (DIP)
+    private final IOcrService ocrService;
+    private final IScanReader scanReader;
 
-
-//    Upload and analyze product image
-//    Returns complete analysis with all ingredients
     @PostMapping("/image")
-    public ResponseEntity<?> uploadScan(
+    public ResponseEntity<ScanResponse> uploadScan(
             @RequestParam("image") MultipartFile file,
             @RequestParam("userId") Long userId,
-            @RequestParam(value = "category", defaultValue = "FOOD") String categoryStr) {
+            @RequestParam(value = "category", defaultValue = "FOOD") String categoryStr)
+            throws IOException {
 
-        try {
-            // Validate category
-            ProductCategory category;
-            try {
-                category = ProductCategory.valueOf(categoryStr.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("error", "Invalid category. Must be: FOOD, COSMETICS, or BEVERAGES"));
-            }
+        // ✅ No try/catch - GlobalExceptionHandler handles errors
+        ProductCategory category = parseCategory(categoryStr);
 
-            // Validate file
-            if (file.isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("error", "Image file is required"));
-            }
+        Scan scan = ocrService.processImageScan(
+                file.getBytes(),
+                file.getContentType(),
+                userId,
+                category
+        );
 
-            log.info("Processing image scan - User: {}, Category: {}, File size: {} bytes",
-                    userId, category, file.getSize());
-
-            // Process the scan
-            Scan scan = ocrService.processImageScan(
-                    file.getBytes(),
-                    file.getContentType(),
-                    userId,
-                    category
-            );
-
-            // Get detailed response
-            ScanResponse response = scanService.getScanById(scan.getId());
-
-            log.info("Successfully processed scan ID: {} with {} ingredients",
-                    scan.getId(), response.getResults().size());
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            log.error("Failed to process image", e);
-            return ResponseEntity.internalServerError()
-                    .body(Map.of(
-                            "success", false,
-                            "error", "Processing failed: " + e.getMessage()
-                    ));
-        }
+        ScanResponse response = scanReader.getScanById(scan.getId());
+        return ResponseEntity.ok(response);
     }
 
-    /**
-     * Get scan details by ID
-     */
     @GetMapping("/{scanId}")
     public ResponseEntity<ScanResponse> getScan(@PathVariable Long scanId) {
-        try {
-            ScanResponse response = scanService.getScanById(scanId);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("Error retrieving scan: {}", scanId, e);
-            return ResponseEntity.notFound().build();
-        }
+        // ✅ Clean - no try/catch needed
+        ScanResponse response = scanReader.getScanById(scanId);
+        return ResponseEntity.ok(response);
     }
 
-    /**
-     * Get all scans for a user
-     */
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<ScanResponse>> getUserScans(@PathVariable Long userId) {
+        List<ScanResponse> scans = scanReader.getScansByUserId(userId);
+        return ResponseEntity.ok(scans);
+    }
+
+    // ============ Private Helpers ============
+
+    private ProductCategory parseCategory(String categoryStr) {
         try {
-            List<ScanResponse> scans = scanService.getScansByUserId(userId);
-            return ResponseEntity.ok(scans);
-        } catch (Exception e) {
-            log.error("Error retrieving scans for user: {}", userId, e);
-            return ResponseEntity.internalServerError().build();
+            return ProductCategory.valueOf(categoryStr.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new InvalidCategoryException(
+                    "Invalid category: " + categoryStr + ". Must be: FOOD, COSMETICS, or BEVERAGES");
         }
     }
 }

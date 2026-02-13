@@ -1,8 +1,12 @@
 package com.nutricheck.service;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nutricheck.dto.AiAnalysisResponse;
 import com.nutricheck.dto.ScanRequest;
 import com.nutricheck.dto.enums.ProductCategory;
+import com.nutricheck.exceptions.AiProcessingException;
+import com.nutricheck.service.interfaces.IImageAnalyzer;
+import com.nutricheck.service.interfaces.ITextAnalyzer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -19,49 +23,62 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AiService {
+public class GeminiAiService implements ITextAnalyzer, IImageAnalyzer {
 
     private final ChatModel chatModel;
     private final ObjectMapper objectMapper;
 
-    /**
-     * Text-based analysis
-     */
-    public AiAnalysisResponse generateAiReply(ScanRequest scanRequest) {
-        String prompt = buildTextPrompt(scanRequest.getIngredients(), scanRequest.getProductCategory());
+    // ============ ITextAnalyzer ============
 
-        log.info("Calling Gemini for text analysis...");
-        String response = chatModel.call(prompt);
+    @Override
+    public AiAnalysisResponse analyzeText(String ingredients, ProductCategory category) {
+        if (ingredients == null || ingredients.trim().isEmpty()) {
+            throw new IllegalArgumentException("Ingredients cannot be empty");
+        }
 
-        return parseAiResponse(response);
+        String prompt = buildTextPrompt(ingredients, category);
+        log.info("Calling Gemini for text analysis - Category: {}", category);
+
+        try {
+            String response = chatModel.call(prompt);
+            return parseAiResponse(response);
+        } catch (Exception e) {
+            log.error("Text analysis failed: {}", e.getMessage(), e);
+            throw new AiProcessingException("Failed to analyze ingredients: " + e.getMessage(), e);
+        }
     }
 
-    /**
-     * Image-based analysis using the Builder and getText()
-     */
+    // ============ IImageAnalyzer ============
+
+    @Override
     public AiAnalysisResponse analyzeImage(byte[] imageBytes, String mimeType, ProductCategory category) {
+        if (imageBytes == null || imageBytes.length == 0) {
+            throw new IllegalArgumentException("Image data cannot be empty");
+        }
+
         String promptText = buildImagePrompt(category);
 
-        // 1. Create Media object using the updated 1.1.2 package
-        var media = new Media(MimeTypeUtils.parseMimeType(mimeType), new ByteArrayResource(imageBytes));
+        var media = new Media(MimeTypeUtils.parseMimeType(mimeType),
+                new ByteArrayResource(imageBytes));
 
-        // 2. FIX: Use UserMessage.builder() for multimodal input
-        // This avoids the 'private access' error with the constructor
         var userMessage = UserMessage.builder()
                 .text(promptText)
                 .media(List.of(media))
                 .build();
 
-        log.info("Calling Gemini-2.0-Flash for image analysis...");
+        log.info("Calling Gemini for image analysis - Category: {}", category);
 
-        // 3. Execute the call using a Prompt object
-        ChatResponse response = chatModel.call(new Prompt(userMessage));
-
-        // 4. FIX: Use getText() to retrieve the content in 1.1.2
-        String resultJson = response.getResult().getOutput().getText();
-
-        return parseAiResponse(resultJson);
+        try {
+            ChatResponse response = chatModel.call(new Prompt(userMessage));
+            String resultJson = response.getResult().getOutput().getText();
+            return parseAiResponse(resultJson);
+        } catch (Exception e) {
+            log.error("Image analysis failed: {}", e.getMessage(), e);
+            throw new AiProcessingException("Failed to analyze image: " + e.getMessage(), e);
+        }
     }
+
+    // ============ Private Helpers ============
 
     private AiAnalysisResponse parseAiResponse(String jsonResponse) {
         try {
@@ -69,17 +86,13 @@ public class AiService {
                     .replaceAll("```json\\s*", "")
                     .replaceAll("```\\s*", "")
                     .trim();
-
             return objectMapper.readValue(cleanJson, AiAnalysisResponse.class);
         } catch (Exception e) {
             log.error("Failed to parse AI response: {}", jsonResponse, e);
-            throw new RuntimeException("Invalid AI JSON response", e);
+            throw new AiProcessingException("Invalid AI response format", e);
         }
     }
 
-    /**
-     * Build prompt for text-based ingredient analysis
-     */
     private String buildTextPrompt(String ingredientList, ProductCategory category) {
         return String.format("""
         You are a Nutritionist and Product Safety Expert analyzing a %s product.
@@ -96,29 +109,24 @@ public class AiService {
             {
               "ingredientName": "string",
               "risk": "LOW | MEDIUM | HIGH",
-              "severity": "string (e.g., Minimal, Moderate, Severe)",
-              "explanation": "string (brief health concern)",
-              "description": "string (what this ingredient is)",
-              "category": "string (e.g., preservative, sweetener)",
-              "sideEffects": ["string array of potential side effects"]
+              "severity": "string",
+              "explanation": "string",
+              "description": "string",
+              "category": "string",
+              "sideEffects": ["string array"]
             }
           ],
-          "safetyScore": number (1-10, where 10 is safest),
-          "overallAssessment": "string (2-3 sentence summary)",
-          "warningsFor": ["string array - groups who should avoid, e.g., pregnant women, children"]
+          "safetyScore": number,
+          "overallAssessment": "string",
+          "warningsFor": ["string array"]
         }
-
         Rules:
         - Sort ingredients from LEAST to MOST harmful
         - Be factual and concise
-        - Include all ingredients from the list
         - Risk levels: LOW, MEDIUM, or HIGH only
         """, category.name(), ingredientList);
     }
 
-    /**
-     * Build prompt for image-based analysis
-     */
     private String buildImagePrompt(ProductCategory category) {
         return String.format("""
         You are a Nutritionist and Product Safety Expert analyzing a %s product.
@@ -129,27 +137,25 @@ public class AiService {
 
         Use this exact structure:
         {
-          "productName": "string (extract from image)",
+          "productName": "string",
           "results": [
             {
               "ingredientName": "string",
               "risk": "LOW | MEDIUM | HIGH",
-              "severity": "string (e.g., Minimal, Moderate, Severe)",
-              "explanation": "string (brief health concern)",
-              "description": "string (what this ingredient is)",
-              "category": "string (e.g., preservative, sweetener)",
-              "sideEffects": ["string array of potential side effects"]
+              "severity": "string",
+              "explanation": "string",
+              "description": "string",
+              "category": "string",
+              "sideEffects": ["string array"]
             }
           ],
-          "safetyScore": number (1-10, where 10 is safest),
-          "overallAssessment": "string (2-3 sentence summary)",
-          "warningsFor": ["string array - groups who should avoid"]
+          "safetyScore": number,
+          "overallAssessment": "string",
+          "warningsFor": ["string array"]
         }
-
         Rules:
         - Extract ALL visible ingredients from the image
         - Sort from LEAST to MOST harmful
-        - Be factual and concise
         - Risk levels: LOW, MEDIUM, or HIGH only
         """, category.name());
     }
