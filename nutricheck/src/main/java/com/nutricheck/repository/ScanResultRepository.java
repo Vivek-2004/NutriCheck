@@ -18,4 +18,9 @@ public interface ScanResultRepository extends JpaRepository<ScanResult, Long> {
      * Find all results by risk level
      */
     List<ScanResult> findByRiskIgnoreCase(String risk);
+
+    /**
+     * Delete all results for a specific scan
+     */
+    void deleteByScanId(Long scanId);
 }

@@ -2,72 +2,72 @@ package com.nutricheck.service;
 
 import com.nutricheck.dto.UserRequest;
 import com.nutricheck.dto.UserResponse;
+import com.nutricheck.entity.Scan;
 import com.nutricheck.entity.User;
-import com.nutricheck.exceptions.UserNotFoundException;
+import com.nutricheck.repository.ScanRepository;
+import com.nutricheck.repository.ScanResultRepository;
 import com.nutricheck.repository.UserRepository;
 import com.nutricheck.service.interfaces.IUserService;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class UserService implements IUserService {
 
     private final UserRepository userRepository;
+    private final ScanRepository scanRepository;
+    private final ScanResultRepository scanResultRepository;
+    private final ModelMapper modelMapper;
 
-    // ============ IUserService ============
-
-    @Override
-    @Transactional
     public UserResponse createNewUser(UserRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("User request cannot be null");
-        }
-        if (request.getName() == null || request.getName().trim().isEmpty()) {
-            throw new IllegalArgumentException("User name is required");
-        }
-        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
-            throw new IllegalArgumentException("User email is required");
-        }
-
-        User user = User.builder()
-                .name(request.getName().trim())
-                .email(request.getEmail().trim().toLowerCase())
-                .build();
-
-        User saved = userRepository.save(user);
-        log.info("Created new user: {} (ID: {})", saved.getName(), saved.getId());
-
-        return toUserResponse(saved);
+        User user = modelMapper.map(request, User.class);
+        user = userRepository.save(user);
+        return modelMapper.map(user, UserResponse.class);
     }
 
     @Override
     public User getUserById(Long id) {
-        // Returns entity for internal use by other services
+        // This is what OcrService calls to get the actual User entity
         return userRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException(
-                        "User not found with id: " + id));
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
     }
 
     @Override
     public UserResponse getUserResponseById(Long id) {
-        // Returns DTO for API responses
+        // This is used for API responses (DTOs)
         User user = getUserById(id);
-        return toUserResponse(user);
+        return modelMapper.map(user, UserResponse.class);
     }
 
-    // ============ Private Helpers ============
+    public UserResponse updateUser(Long userId, UserRequest request) {
+        User existingUser = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
-    private UserResponse toUserResponse(User user) {
-        return new UserResponse(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getCreatedAt(),
-                user.getUpdatedAt()
-        );
+        existingUser.setName(request.getName());
+        existingUser.setEmail(request.getEmail());
+
+        User updatedUser = userRepository.save(existingUser);
+        return modelMapper.map(updatedUser, UserResponse.class);
+    }
+
+    @Transactional
+    public void deleteUserAndHistory(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+
+        List<Scan> userScans = scanRepository.findByUserId(userId);
+
+        for (Scan scan : userScans) {
+            scanResultRepository.deleteByScanId(scan.getId());
+        }
+
+        scanRepository.deleteByUserId(userId);
+        userRepository.delete(user);
     }
 }

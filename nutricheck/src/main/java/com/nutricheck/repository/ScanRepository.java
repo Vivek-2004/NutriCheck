@@ -18,4 +18,6 @@ public interface ScanRepository extends JpaRepository<Scan, Long> {
      * Find scans by product name (case-insensitive, partial match)
      */
     List<Scan> findByProductNameContainingIgnoreCase(String productName);
+
+    void deleteByUserId(Long userId);
 }
