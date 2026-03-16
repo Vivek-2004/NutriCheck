@@ -2,35 +2,30 @@ package com.nutricheck.controller;
 
 import com.nutricheck.dto.UserRequest;
 import com.nutricheck.dto.UserResponse;
-import com.nutricheck.service.UserService;
+import com.nutricheck.service.interfaces.IUserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/user")
+@RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UserService userService;
+    // ✅ Depends on interface, not concrete UserService (DIP)
+    private final IUserService userService;
 
     @PostMapping
-    public ResponseEntity<UserResponse> createNewUser(@RequestBody UserRequest request){
-        return ResponseEntity.ok(userService.createNewUser(request));
+    public ResponseEntity<UserResponse> createNewUser(@RequestBody UserRequest request) {
+        // ✅ No try/catch - GlobalExceptionHandler handles errors
+        UserResponse response = userService.createNewUser(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PutMapping("/{userId}")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable Long userId, @RequestBody UserRequest request) {
-        return ResponseEntity.ok(userService.updateUser(userId, request));
-    }
-
-    @DeleteMapping("/{userId}")
-    public ResponseEntity<Void> deleteUserAndHistory(@PathVariable Long userId) {
-        userService.deleteUserAndHistory(userId);
-        return ResponseEntity.noContent().build();
+    @GetMapping("/{id}")
+    public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
+        UserResponse response = userService.getUserResponseById(id);
+        return ResponseEntity.ok(response);
     }
 }
