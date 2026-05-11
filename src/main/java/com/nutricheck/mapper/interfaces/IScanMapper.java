@@ -5,7 +5,6 @@ import com.nutricheck.dto.ScanResultDto;
 import com.nutricheck.dto.ScanSummary;
 import com.nutricheck.entity.Scan;
 import com.nutricheck.entity.ScanResult;
-
 import java.util.List;
 
 public interface IScanMapper {

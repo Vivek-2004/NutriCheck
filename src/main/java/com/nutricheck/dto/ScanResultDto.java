@@ -5,9 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Individual scan result for an ingredient
- */
+// Individual scan result for an ingredient
 @Data
 @Builder
 @NoArgsConstructor

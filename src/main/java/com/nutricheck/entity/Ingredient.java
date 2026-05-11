@@ -24,7 +24,6 @@ public class Ingredient {
     private String aliases;
 
     private String category;
-
     private String riskLevel;
 
     @Column(columnDefinition = "TEXT")

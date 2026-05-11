@@ -1,7 +1,6 @@
 package com.nutricheck.service.interfaces;
 
 import com.nutricheck.entity.Ingredient;
-
 import java.util.List;
 
 public interface IIngredientWriter {

@@ -31,10 +31,7 @@ public class OcrController {
             @RequestParam(value = "category", defaultValue = "FOOD") String categoryStr
     ) throws IOException {
 
-        // ✅ No try/catch - GlobalExceptionHandler handles errors
-
         ProductCategory category = parseCategory(categoryStr);
-
         Scan scan = ocrService.processImageScan(
                 file.getBytes(),
                 file.getContentType(),

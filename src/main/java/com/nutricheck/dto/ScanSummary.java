@@ -5,9 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Summary statistics for the scan
- */
+// Summary statistics for the scan
 @Data
 @Builder
 @NoArgsConstructor

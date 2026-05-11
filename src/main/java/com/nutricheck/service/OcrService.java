@@ -6,7 +6,6 @@ import com.nutricheck.entity.Scan;
 import com.nutricheck.entity.ScanResult;
 import com.nutricheck.entity.Ingredient;
 import com.nutricheck.entity.User;
-import com.nutricheck.exceptions.AiProcessingException;
 import com.nutricheck.repository.ScanResultRepository;
 import com.nutricheck.service.interfaces.*;
 import lombok.RequiredArgsConstructor;

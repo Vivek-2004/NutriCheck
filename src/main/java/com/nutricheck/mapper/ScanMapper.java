@@ -7,7 +7,6 @@ import com.nutricheck.entity.Scan;
 import com.nutricheck.entity.ScanResult;
 import com.nutricheck.mapper.interfaces.IScanMapper;
 import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.stream.Collectors;
 

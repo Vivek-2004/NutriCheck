@@ -2,7 +2,6 @@ package com.nutricheck.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nutricheck.dto.AiAnalysisResponse;
-import com.nutricheck.dto.ScanRequest;
 import com.nutricheck.dto.enums.ProductCategory;
 import com.nutricheck.exceptions.AiProcessingException;
 import com.nutricheck.service.interfaces.IImageAnalyzer;
@@ -17,7 +16,6 @@ import org.springframework.ai.content.Media;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeTypeUtils;
-
 import java.util.List;
 
 @Slf4j

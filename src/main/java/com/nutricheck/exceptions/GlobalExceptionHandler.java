@@ -7,7 +7,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
-
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -15,10 +14,10 @@ import java.time.LocalDateTime;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleUserNotFound(UserNotFoundException ex) {
+    public ResponseEntity<ErrorResponseDTO> handleUserNotFound(UserNotFoundException ex) {
         log.error("User not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ErrorResponse.builder()
+                .body(ErrorResponseDTO.builder()
                         .status(HttpStatus.NOT_FOUND.value())
                         .error("User Not Found")
                         .message(ex.getMessage())
@@ -27,10 +26,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ScanNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleScanNotFound(ScanNotFoundException ex) {
+    public ResponseEntity<ErrorResponseDTO> handleScanNotFound(ScanNotFoundException ex) {
         log.error("Scan not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ErrorResponse.builder()
+                .body(ErrorResponseDTO.builder()
                         .status(HttpStatus.NOT_FOUND.value())
                         .error("Scan Not Found")
                         .message(ex.getMessage())
@@ -39,10 +38,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AiProcessingException.class)
-    public ResponseEntity<ErrorResponse> handleAiProcessing(AiProcessingException ex) {
+    public ResponseEntity<ErrorResponseDTO> handleAiProcessing(AiProcessingException ex) {
         log.error("AI processing failed: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ErrorResponse.builder()
+                .body(ErrorResponseDTO.builder()
                         .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                         .error("AI Processing Failed")
                         .message(ex.getMessage())
@@ -51,10 +50,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(IngredientProcessingException.class)
-    public ResponseEntity<ErrorResponse> handleIngredientProcessing(IngredientProcessingException ex) {
+    public ResponseEntity<ErrorResponseDTO> handleIngredientProcessing(IngredientProcessingException ex) {
         log.error("Ingredient processing failed: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ErrorResponse.builder()
+                .body(ErrorResponseDTO.builder()
                         .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                         .error("Ingredient Processing Failed")
                         .message(ex.getMessage())
@@ -63,10 +62,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(InvalidCategoryException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidCategory(InvalidCategoryException ex) {
+    public ResponseEntity<ErrorResponseDTO> handleInvalidCategory(InvalidCategoryException ex) {
         log.error("Invalid category: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorResponse.builder()
+                .body(ErrorResponseDTO.builder()
                         .status(HttpStatus.BAD_REQUEST.value())
                         .error("Invalid Category")
                         .message(ex.getMessage())
@@ -75,10 +74,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
-    public ResponseEntity<ErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+    public ResponseEntity<ErrorResponseDTO> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         log.error("File too large: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorResponse.builder()
+                .body(ErrorResponseDTO.builder()
                         .status(HttpStatus.BAD_REQUEST.value())
                         .error("File Too Large")
                         .message("Uploaded file exceeds the maximum allowed size")
@@ -87,10 +86,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+    public ResponseEntity<ErrorResponseDTO> handleIllegalArgument(IllegalArgumentException ex) {
         log.error("Invalid argument: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorResponse.builder()
+                .body(ErrorResponseDTO.builder()
                         .status(HttpStatus.BAD_REQUEST.value())
                         .error("Invalid Argument")
                         .message(ex.getMessage())
@@ -99,10 +98,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
+    public ResponseEntity<ErrorResponseDTO> handleGeneric(Exception ex) {
         log.error("Unexpected error: ", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ErrorResponse.builder()
+                .body(ErrorResponseDTO.builder()
                         .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                         .error("Internal Server Error")
                         .message("An unexpected error occurred")
@@ -110,10 +109,10 @@ public class GlobalExceptionHandler {
                         .build());
     }
     @ExceptionHandler(DuplicateEmailException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicateEmail(DuplicateEmailException ex) {
+    public ResponseEntity<ErrorResponseDTO> handleDuplicateEmail(DuplicateEmailException ex) {
         log.error("Duplicate email: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)  // 409 Conflict
-                .body(ErrorResponse.builder()
+                .body(ErrorResponseDTO.builder()
                         .status(HttpStatus.CONFLICT.value())
                         .error("Duplicate Email")
                         .message(ex.getMessage())
@@ -123,13 +122,13 @@ public class GlobalExceptionHandler {
 
     // Also add this to catch DB constraint violations generically
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex) {
+    public ResponseEntity<ErrorResponseDTO> handleDataIntegrity(DataIntegrityViolationException ex) {
         log.error("Data integrity violation: {}", ex.getMessage());
 
         // Check if it's specifically a duplicate email
         if (ex.getMessage().contains("users.UK") || ex.getMessage().contains("email")) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ErrorResponse.builder()
+                    .body(ErrorResponseDTO.builder()
                             .status(HttpStatus.CONFLICT.value())
                             .error("Duplicate Email")
                             .message("An account with this email already exists")
@@ -138,7 +137,7 @@ public class GlobalExceptionHandler {
         }
 
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ErrorResponse.builder()
+                .body(ErrorResponseDTO.builder()
                         .status(HttpStatus.CONFLICT.value())
                         .error("Data Conflict")
                         .message("A record with this data already exists")
