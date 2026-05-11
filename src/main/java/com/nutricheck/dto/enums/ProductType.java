@@ -2,7 +2,6 @@ package com.nutricheck.dto.enums;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 
 @Getter
 @RequiredArgsConstructor
@@ -20,5 +19,4 @@ public enum ProductType {
     JUICE(ProductCategory.BEVERAGES);
 
     private final ProductCategory category;
-
 }
