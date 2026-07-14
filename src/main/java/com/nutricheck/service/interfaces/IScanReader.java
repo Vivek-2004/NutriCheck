@@ -5,6 +5,8 @@ import java.util.List;
 
 public interface IScanReader {
 
+    List<ScanResponse> getScanHistory();
+
     ScanResponse getScanById(Long scanId);
 
     List<ScanResponse> getScansByUserId(Long userId);

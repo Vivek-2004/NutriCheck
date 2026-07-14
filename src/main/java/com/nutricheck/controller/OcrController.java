@@ -50,6 +50,11 @@ public class OcrController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping
+    public ResponseEntity<List<ScanResponse>> getFullScanHistory() {
+        return ResponseEntity.ok(scanReader.getScanHistory());
+    }
+
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<ScanResponse>> getUserScans(@PathVariable Long userId) {
         List<ScanResponse> scans = scanReader.getScansByUserId(userId);

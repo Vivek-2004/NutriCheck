@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -39,6 +40,16 @@ public class ScanService implements IScanReader, IScanWriter {
 
         // ✅ Mapping delegated to ScanMapper (SRP)
         return scanMapper.toScanResponse(scan, results);
+    }
+
+    @Override
+    public List<ScanResponse> getScanHistory() {
+        List<ScanResponse> fullHistory = new ArrayList<>();
+        List<Scan> allScans = scanRepository.findAll();
+        allScans.forEach(scan -> {
+            fullHistory.add(this.getScanById(scan.getId()));
+        });
+        return fullHistory;
     }
 
     @Override
