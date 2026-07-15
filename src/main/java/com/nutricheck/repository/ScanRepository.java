@@ -8,8 +8,7 @@ import java.util.List;
 @Repository
 public interface ScanRepository extends JpaRepository<Scan, Long> {
 
-    // Find all scans for a specific user
-    List<Scan> findByUserId(Long userId);
+
 
     // Find scans by product name (case-insensitive, partial match)
     List<Scan> findByProductNameContainingIgnoreCase(String productName);

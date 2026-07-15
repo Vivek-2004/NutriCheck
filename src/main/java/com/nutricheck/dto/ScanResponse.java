@@ -19,8 +19,9 @@ public class ScanResponse {
     private Long scanId;
     private String productName;
     private LocalDateTime scannedAt;
-    private Long userId;
-    private String userName;
     private List<ScanResultDto> results;
     private ScanSummary summary;
+    private Integer safetyScore;
+    private String overallAssessment;
+    private List<String> warningsFor;
 }

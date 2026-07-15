@@ -24,9 +24,8 @@ public class Scan {
     private String productName;
     private LocalDateTime scannedAt;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
+    @Column(columnDefinition = "LONGTEXT")
+    private String aiAnalysisResponse;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
